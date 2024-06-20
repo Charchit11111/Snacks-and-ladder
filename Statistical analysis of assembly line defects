@@ -1,0 +1,65 @@
+import pandas as pd
+import numpy as np
+from scipy.stats import chi2_contingency, poisson, chi2
+
+# Load the dataset
+gof_data = pd.read_excel('/mnt/data/GOF.xlsx')
+chi_square_data = pd.read_csv('/mnt/data/chiSquareAssignment.csv')
+
+# Step 1: Analyze the distribution of defects (GOF.xlsx data)
+
+# Calculate the expected number of scratches
+expected_scratches = gof_data['obs'].mean()
+print(f'Expected number of scratches: {expected_scratches:.4f}')
+
+# Determine distribution symmetry
+mean_scratches = gof_data['obs'].mean()
+median_scratches = gof_data['obs'].median()
+mode_scratches = gof_data['obs'].mode()[0]
+
+distribution_type = (
+    "Right skewed distribution" if mean_scratches > median_scratches > mode_scratches else
+    "Left skewed distribution" if mean_scratches < median_scratches < mode_scratches else
+    "Symmetric distribution"
+)
+print(f'Distribution type: {distribution_type}')
+
+# Calculate the probability of observing exactly 4 defects
+lambda_param = expected_scratches
+prob_4_defects = poisson.pmf(4, lambda_param)
+print(f'Probability of exactly 4 defects: {prob_4_defects:.4f}')
+
+# Perform chi-square goodness of fit test
+observed_freq = gof_data['obs'].value_counts().sort_index()
+expected_freq = poisson.pmf(observed_freq.index, lambda_param) * len(gof_data)
+chi_square_stat = ((observed_freq - expected_freq) ** 2 / expected_freq).sum()
+p_value = chi2.sf(chi_square_stat, len(observed_freq) - 1 - 1)
+print(f'Chi-square test statistic: {chi_square_stat:.4f}')
+print(f'P-value: {p_value:.4f}')
+
+# Step 2: Perform chi-square test of independence (chiSquareAssignment.csv data)
+
+# Create contingency table
+contingency_table = pd.crosstab(chi_square_data['Group'], chi_square_data['Brand'])
+
+# Perform chi-square test of independence
+chi2_stat, p_val, dof, expected_freq = chi2_contingency(contingency_table)
+print(f'Chi-square test statistic: {chi2_stat:.4f}')
+print(f'P-value: {p_val:.4f}')
+print(f'Degrees of freedom: {dof}')
+
+# Probability of a person preferring brand Don
+prob_preferring_don = contingency_table.sum(axis=0)['Don'] / contingency_table.values.sum()
+print(f'Probability of preferring brand Don: {prob_preferring_don:.4f}')
+
+# Expected frequency for students preferring Don
+expected_freq_students_don = expected_freq[0, 2]
+print(f'Expected frequency of students preferring Don: {expected_freq_students_don:.4f}')
+
+# Conclusion based on significance level of 0.01
+conclusion = (
+    "Reject the null hypothesis and conclude that the categorical variables are not independent"
+    if p_val < 0.01 else
+    "Fail to reject the null hypothesis and conclude that the categorical variables are independent"
+)
+print(f'Conclusion: {conclusion}')
